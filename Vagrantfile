@@ -32,7 +32,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   end
 
   (1..CONSUL_CLIENT_NUM).each do |i|
-    node_name = "consul-server-#{i}"
+    node_name = "consul-client-#{i}"
     config.vm.define vm_name = node_name do |server|
       ip = "192.168.33.#{i+20}"
       server.vm.hostname = node_name
