@@ -49,10 +49,13 @@ def setup(config, hostname, ip, server, bootstrap)
       cmd: "consul://#{ip}:8500",
       args: "-h registrator-#{hostname} -v /var/run/docker.sock:/tmp/docker.sock"
 
-    d.run "foostan/tinyweb",
-      args: "-h blue-tinyweb-#{hostname} -p 80 -e 'SERVICE_TAGS=blue'"
+    d.run "foostan/haproxy-with-consul",
+      args: "-h proxy-#{hostname} -p 80 -p 8080 -e 'CONSUL_URI=#{ip}:8500'"
 
     d.run "foostan/tinyweb",
-      args: "-h green-tinyweb-#{hostname} -p 80 -e 'SERVICE_TAGS=green'"
+      args: "-h blue-tinyweb-#{hostname} -p 80 -e 'SERVICE_TAGS=blue' -e 'SERVICE_NAME=webapp'"
+
+    d.run "foostan/tinyweb",
+      args: "-h green-tinyweb-#{hostname} -p 80 -e 'SERVICE_TAGS=green' -e 'SERVICE_NAME=webapp'"
   end
 end
