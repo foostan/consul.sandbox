@@ -48,5 +48,11 @@ def setup(config, hostname, ip, server, bootstrap)
     d.run "progrium/registrator",
       cmd: "consul://#{ip}:8500",
       args: "-h registrator-#{hostname} -v /var/run/docker.sock:/tmp/docker.sock"
+
+    d.run "foostan/tinyweb",
+      args: "-h blue-tinyweb-#{hostname} -p 80 -e 'SERVICE_TAGS=blue'"
+
+    d.run "foostan/tinyweb",
+      args: "-h green-tinyweb-#{hostname} -p 80 -e 'SERVICE_TAGS=green'"
   end
 end
