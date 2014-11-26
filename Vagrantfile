@@ -49,6 +49,9 @@ def setup(config, hostname, ip, server, bootstrap)
       cmd: "consul://#{ip}:8500",
       args: "-h registrator-#{hostname} -v /var/run/docker.sock:/tmp/docker.sock"
 
+    d.run "foostan/docker-metrics-to-consul",
+      args: "-h metrics-#{hostname} -v '/var/run/docker.sock:/var/run/docker.sock' -v '/sys/fs/cgroup/:/sys/fs/cgroup:ro' -e 'CONSUL_URI=http://#{ip}:8500' -e 'KV_PREFIX=docker_metrics'"
+
     d.run "foostan/haproxy-with-consul",
       args: "-h proxy-#{hostname} -p 80 -p 8080 -e 'CONSUL_URI=#{ip}:8500'"
 
