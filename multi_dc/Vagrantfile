@@ -26,33 +26,49 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
       dc.vm.provision :shell, preserve_order: true do |sh|
         sh.inline = <<-EOT
+          docker ps -q | xargs --no-run-if-empty docker kill | xargs --no-run-if-empty docker rm
+
           sed -e \'s/%BIP%/#{bip}.1\\/24/g\' -i /tmp/docker.service
           mv /tmp/docker.service /etc/systemd/system/
 
           systemctl daemon-reload
           systemctl restart docker
-
-          docker ps -q | xargs --no-run-if-empty docker rm
         EOT
       end
 
       dc.vm.provision :docker, preserve_order: true do |d|
         (1..SERVER_NUM).each do |si|
-          if si == 1
-            d.run "server#{si}", image: "progrium/consul",
-              cmd: "-server -bootstrap-expect #{SERVER_NUM}",
-              args: "-h server1.consul.dc#{i}"
+          is_first_dc = i == 1 ? true : false
+          is_first_server = si == 1 ? true : false
+
+          if is_first_server
+            # a first consul server bootstrap consul
+            bootstrap_opt = "-bootstrap-expect #{SERVER_NUM}"
+            join_opt = ""
           else
-            d.run "server#{si}", image: "progrium/consul",
-              cmd: "-server -join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1`",
-              args: "-h server#{si}.consul.dc#{i}"
+            # not first consul servers join a first consul server
+            bootstrap_opt = ""
+            join_opt = "-join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1`"
           end
+
+          if is_first_dc
+            # a first dc's consul servers receive join -wan
+            join_wan_opt = ""
+          else
+            # not first dc's consul servers exec join -wan
+            join_wan_opt = ""
+          end
+
+          d.run "server#{si}", image: "progrium/consul",
+            cmd: "-server #{bootstrap_opt} #{join_opt} -dc dc#{i}",
+            args: "-h server#{si}.consul -p 1000#{si}:8202"
         end
 
         (1..CLIENT_NUM).each do |ci|
+          # all of consul clients join a first consul server
           d.run "client#{ci}", image: "progrium/consul",
-            cmd: "-join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1`",
-            args: "-h client#{ci}.consul.dc#{i}"
+            cmd: "-join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1` -dc dc#{i}",
+            args: "-h client#{ci}.consul"
         end
 
       end
