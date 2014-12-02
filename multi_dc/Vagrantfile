@@ -7,6 +7,9 @@ DC_NUM = 2
 IP_BASE = "192.168.33."
 BIP_BASE = "10.1."
 
+SERVER_NUM = 3
+CLIENT_NUM = 3
+
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "yungsang/coreos-beta"
 
@@ -28,13 +31,30 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
           systemctl daemon-reload
           systemctl restart docker
+
+          docker ps -q | xargs --no-run-if-empty docker rm
         EOT
       end
 
       dc.vm.provision :docker, preserve_order: true do |d|
-        d.run "progrium/consul",
-          cmd: "-server -bootstrap -advertise #{ip}",
-          args: "-h server.consul.dc#{i}"
+        (1..SERVER_NUM).each do |si|
+          if si == 1
+            d.run "server#{si}", image: "progrium/consul",
+              cmd: "-server -bootstrap-expect #{SERVER_NUM}",
+              args: "-h server1.consul.dc#{i}"
+          else
+            d.run "server#{si}", image: "progrium/consul",
+              cmd: "-server -join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1`",
+              args: "-h server#{si}.consul.dc#{i}"
+          end
+        end
+
+        (1..CLIENT_NUM).each do |ci|
+          d.run "client#{ci}", image: "progrium/consul",
+            cmd: "-join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1`",
+            args: "-h client#{ci}.consul.dc#{i}"
+        end
+
       end
     end
   end
