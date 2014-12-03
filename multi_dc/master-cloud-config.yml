@@ -14,11 +14,11 @@ coreos:
     snapshot: true
   units:
     - name: etcd.service
-      command: restart
+      command: start
     - name: fleet.service
-      command: restart
+      command: start
     - name: flannel.service
-      command: restart
+      command: start
       content: |
         [Unit]
         Requires=etcd.service
