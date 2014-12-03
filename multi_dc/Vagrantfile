@@ -13,6 +13,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "yungsang/coreos-beta"
 
   (1..DC_NUM).each do |i|
+    is_first_dc = i == 1 ? true : false
+
     hostname = "dc-#{i}"
     ip = "#{IP_BASE}.#{i+10}"
     bip = "172.17.#{i+10}.1\\/24"
@@ -21,23 +23,22 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       dc.vm.hostname = hostname
       dc.vm.network :private_network, ip: ip
 
-      dc.vm.provision :file, preserve_order: true, source: "./docker.service", destination: "/tmp/docker.service"
+      if is_first_dc
+        dc.vm.provision :file, preserve_order: true, source: "./master-cloud-config.yml", destination: "./cloud-config.yml"
+      else
+        dc.vm.provision :file, preserve_order: true, source: "./node-cloud-config.yml", destination: "./cloud-config.yml"
+      end
 
       dc.vm.provision :shell, preserve_order: true do |sh|
         sh.inline = <<-EOT
-          docker ps -q | xargs --no-run-if-empty docker kill | xargs --no-run-if-empty docker rm
-
-          sed -e \'s/%BIP%/#{bip}/g\' -i /tmp/docker.service
-          mv /tmp/docker.service /etc/systemd/system/
-
-          systemctl daemon-reload
-          systemctl restart docker
+          sed -e \'s/%master-ip%/#{IP_BASE}.11/g\' -i ./cloud-config.yml
+          sed -e \'s/%ip%/#{ip}/g\' -i ./cloud-config.yml
+          coreos-cloudinit -from-file=./cloud-config.yml
         EOT
       end
 
       dc.vm.provision :docker, preserve_order: true do |d|
         (1..SERVER_NUM).each do |si|
-          is_first_dc = i == 1 ? true : false
           is_first_server = si == 1 ? true : false
 
           if is_first_server
@@ -60,7 +61,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
           d.run "server#{si}", image: "progrium/consul",
             cmd: "-server #{bootstrap_opt} #{join_opt} -dc dc#{i}",
-            args: "-h server#{si}.consul -p 1000#{si}:8202"
+            args: "-h server#{si}.consul"
         end
 
         (1..CLIENT_NUM).each do |ci|
