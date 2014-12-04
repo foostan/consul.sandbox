@@ -25,15 +25,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
       # coreos cloudinit
       if master
-        dc.vm.provision :file, preserve_order: true, source: "./master-cloud-config.yml", destination: "./cloud-config.yml"
+        dc.vm.provision :file, preserve_order: true, source: "cloud_config/master.yml", destination: "./cloud_config.yml"
       else
-        dc.vm.provision :file, preserve_order: true, source: "./node-cloud-config.yml", destination: "./cloud-config.yml"
+        dc.vm.provision :file, preserve_order: true, source: "cloud_config/node.yml", destination: "./cloud_config.yml"
       end
       dc.vm.provision :shell, preserve_order: true do |sh|
         sh.inline = <<-EOT
-          sed -e \'s/%master-ip%/#{IP_BASE}.11/g\' -i ./cloud-config.yml
-          sed -e \'s/%ip%/#{ip}/g\' -i ./cloud-config.yml
-          coreos-cloudinit -from-file=./cloud-config.yml
+          sed -e \'s/%master-ip%/#{IP_BASE}.11/g\' -i ./cloud_config.yml
+          sed -e \'s/%ip%/#{ip}/g\' -i ./cloud_config.yml
+          coreos-cloudinit -from-file=./cloud_config.yml
         EOT
       end
 
