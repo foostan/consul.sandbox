@@ -1,34 +1,34 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+load "provisioner/master.rb"
+load "provisioner/node.rb"
+
 VAGRANTFILE_API_VERSION = "2"
 
 DC_NUM = 2
-IP_BASE = "192.168.33"
-
 SERVER_NUM = 3
 CLIENT_NUM = 3
+IP_BASE = "192.168.33"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "yungsang/coreos-beta"
 
   (1..DC_NUM).each do |i|
-    is_first_dc = i == 1 ? true : false
-
-    hostname = "dc-#{i}"
+    master = i == 1 ? true : false
+    hostname = "dc#{i}"
     ip = "#{IP_BASE}.#{i+10}"
-    bip = "172.17.#{i+10}.1\\/24"
 
     config.vm.define vm_name = hostname do |dc|
       dc.vm.hostname = hostname
       dc.vm.network :private_network, ip: ip
 
-      if is_first_dc
+      # coreos cloudinit
+      if master
         dc.vm.provision :file, preserve_order: true, source: "./master-cloud-config.yml", destination: "./cloud-config.yml"
       else
         dc.vm.provision :file, preserve_order: true, source: "./node-cloud-config.yml", destination: "./cloud-config.yml"
       end
-
       dc.vm.provision :shell, preserve_order: true do |sh|
         sh.inline = <<-EOT
           sed -e \'s/%master-ip%/#{IP_BASE}.11/g\' -i ./cloud-config.yml
@@ -37,40 +37,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         EOT
       end
 
-      dc.vm.provision :docker, preserve_order: true do |d|
-        (1..SERVER_NUM).each do |si|
-          is_first_server = si == 1 ? true : false
-
-          if is_first_server
-            # a first consul server bootstrap consul
-            bootstrap_opt = "-bootstrap-expect #{SERVER_NUM}"
-            join_opt = ""
-          else
-            # not first consul servers join a first consul server
-            bootstrap_opt = ""
-            join_opt = "-join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1`"
-          end
-
-          if is_first_dc
-            # a first dc's consul servers receive join -wan
-            join_wan_opt = ""
-          else
-            # not first dc's consul servers exec join -wan
-            join_wan_opt = ""
-          end
-
-          d.run "server#{si}", image: "progrium/consul",
-            cmd: "-server #{bootstrap_opt} #{join_opt} -dc dc#{i}",
-            args: "-h server#{si}.consul"
-        end
-
-        (1..CLIENT_NUM).each do |ci|
-          # all of consul clients join a first consul server
-          d.run "client#{ci}", image: "progrium/consul",
-            cmd: "-join `docker inspect -f '{{ .NetworkSettings.IPAddress }}' server1` -dc dc#{i}",
-            args: "-h client#{ci}.consul"
-        end
-
+      # provision datacenters
+      if master
+        provision_master(dc, hostname, ip, SERVER_NUM, CLIENT_NUM)
+      else
+        master_ip = "#{IP_BASE}.11"
+        provision_node(dc, hostname, ip, master_ip, SERVER_NUM, CLIENT_NUM)
       end
     end
   end
