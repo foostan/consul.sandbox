@@ -1,0 +1,7 @@
+db:
+  master:
+    host: master.db.consul
+    port: 6379
+  slave:
+    host: slave.db.consul
+    port: 6379
