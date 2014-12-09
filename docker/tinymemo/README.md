@@ -9,5 +9,5 @@ Screen shot
 Starting tinymemo
 ------------
 ```
-$ docker run -d -v /path/to/config.yml:/tinymemo/config.yml -p 80 foostan/tinymemo
+$ docker run -d --dns=127.0.0.1 -e "CONSUL_OPT=-server -bootstrap" foostan/consul-playground-tinymemo
 ```
