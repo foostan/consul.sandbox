@@ -42,7 +42,7 @@ def setup(config, hostname, ip, server, bootstrap)
   config.vm.provision "docker" do |d|
     d.run "progrium/consul",
       cmd: "#{consul_opt_server} #{consul_opt_bootstrap} -advertise #{ip} -join #{IP_BASE}11",
-      args: "-p 8300:8300 -p 8301:8301/tcp -p 8301:8301/udp -p 8302:8302/tcp -p 8302:8302/udp -p 8400:8400 -p 8500:8500 -p 8600:53/udp -h #{hostname} --name consul"
+      args: "-p 8300:8300 -p 8301:8301/tcp -p 8301:8301/udp -p 8302:8302/tcp -p 8302:8302/udp -p 8400:8400 -p 8500:8500 -p 8600:53/tcp -p 8600:53/udp -h #{hostname} --name consul"
 
     d.run "progrium/registrator",
       cmd: "consul://consul:8500",
