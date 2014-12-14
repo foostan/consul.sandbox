@@ -1,0 +1,51 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+CONSUL_SERVER_NUM = 2
+CONSUL_CLIENT_NUM = 1
+
+IP_BASE = "192.168.33."
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "yungsang/coreos-beta"
+
+  (1..CONSUL_SERVER_NUM).each do |i|
+    node_name = "node-#{i}"
+    config.vm.define vm_name = node_name do |server|
+      ip = "#{IP_BASE}#{i+10}"
+      if i == 1
+        setup(server, node_name, ip, true, true)
+      else
+        setup(server, node_name, ip, true, false)
+      end
+    end
+  end
+
+  (1..CONSUL_CLIENT_NUM).each do |i|
+    node_name = "node-#{i+CONSUL_SERVER_NUM}"
+    config.vm.define vm_name = node_name do |client|
+      ip = "#{IP_BASE}#{i+20}"
+      setup(client, node_name, ip, false, false)
+    end
+  end
+end
+
+def setup(config, hostname, ip, server, bootstrap)
+  config.vm.hostname = hostname
+  config.vm.network :private_network, ip: ip
+
+  consul_opt_server = server ? '-server' : ''
+  consul_opt_bootstrap = bootstrap ? '-bootstrap-expect 1' : ''
+
+  config.vm.provision "docker" do |d|
+    d.run "progrium/consul",
+      cmd: "#{consul_opt_server} #{consul_opt_bootstrap} -advertise #{ip} -join #{IP_BASE}11",
+      args: "-p 8300:8300 -p 8301:8301/tcp -p 8301:8301/udp -p 8302:8302/tcp -p 8302:8302/udp -p 8400:8400 -p 8500:8500 -p 8600:53/udp -h #{hostname} --name consul"
+
+    d.run "progrium/registrator",
+      cmd: "consul://consul:8500",
+      args: "-v /var/run/docker.sock:/tmp/docker.sock -h registrator-#{hostname} --name registrator --link consul:consul"
+  end
+end
