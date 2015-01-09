@@ -19,7 +19,7 @@ RUN unzip /tmp/0.4.1_web_ui.zip -d /tmp
 RUN mv /tmp/dist /consul/ui
 
 ## consul-template
-RUN wget -P /tmp https://github.com/hashicorp/consul-template/releases/download/v0.3.1/consul-template_0.3.1_linux_amd64.tar.gz
+RUN wget -P /tmp https://github.com/hashicorp/consul-template/releases/download/v0.5.1/consul-template_0.3.1_linux_amd64.tar.gz
 RUN tar xvzf /tmp/consul-template_0.3.1_linux_amd64.tar.gz -C /tmp
 RUN mv /tmp/consul-template_0.3.1_linux_amd64/consul-template /usr/bin
 
