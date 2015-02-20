@@ -3,6 +3,9 @@ FROM ubuntu:trusty
 MAINTAINER foostan ks@fstn.jp
 
 RUN apt-get update && apt-get install -y wget curl unzip telnet dnsutils
+RUN wget http://stedolan.github.io/jq/download/linux64/jq
+RUN chmod +x jq
+RUN mv jq /usr/bin
 
 # install consul & consul tools
 RUN mkdir consul
